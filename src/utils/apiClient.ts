@@ -1,5 +1,6 @@
 import { APIRequestContext, request } from '@playwright/test'
-import { BASE_URL } from '../config/env'
+import { API_BASE_URL } from '../config/env'
+import { TIMEOUTS } from '../config/timeouts'
 
 export interface ApiResult {
   status: number
@@ -15,7 +16,7 @@ export class ApiClient {
 
   private constructor(private ctx: APIRequestContext) {}
 
-  static async create(baseURL: string = BASE_URL): Promise<ApiClient> {
+  static async create(baseURL: string = API_BASE_URL): Promise<ApiClient> {
     return new ApiClient(await request.newContext({ baseURL }))
   }
 
@@ -39,6 +40,7 @@ export class ApiClient {
     const response = await this.ctx.fetch(path, {
       method,
       data,
+      timeout: TIMEOUTS.MEDIUM,
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {}
     })
     const text = await response.text()

@@ -3,7 +3,7 @@ import { chromium, Browser } from '@playwright/test'
 import { CustomWorld } from './world'
 import { SlackNotifier } from '../utils/slackNotifier'
 import { ApiClient } from '../utils/apiClient'
-import { BASE_URL, HEADED, SLOW_MO } from '../config/env'
+import { API_BASE_URL, BASE_URL, HEADED, SLOW_MO } from '../config/env'
 import { TIMEOUTS } from '../config/timeouts'
 
 setDefaultTimeout(TIMEOUTS.SCENARIO)
@@ -23,15 +23,20 @@ const slackEnabled = () => process.env.SLACK_NOTIFY === 'true'
 
 const formatDuration = (ms: number) => `${(ms / 1000).toFixed(1)}s`
 
-// Once per run: launch one shared browser
+// One shared browser per run, launched on first use so an API-only run never opens one
+const getBrowser = async (): Promise<Browser> => {
+  browser ??= await chromium.launch({ headless: !HEADED, slowMo: SLOW_MO })
+  return browser
+}
+
 BeforeAll(async function () {
-  browser = await chromium.launch({ headless: !HEADED, slowMo: SLOW_MO })
   stats.startTime = Date.now()
-  console.log(`\nRun started | Mode: ${HEADED ? 'headed' : 'headless'} | Browser: Chromium ${browser.version()} | Env: ${BASE_URL}${SLOW_MO ? ` | SlowMo: ${SLOW_MO}ms` : ''}\n`)
+  console.log(`\nRun started | UI: ${BASE_URL} (${HEADED ? 'headed' : 'headless'}${SLOW_MO ? `, SlowMo ${SLOW_MO}ms` : ''}) | API: ${API_BASE_URL}\n`)
 })
 
 // UI scenarios only: a fresh, isolated browser context per scenario
 Before({ tags: '@UI' }, async function (this: CustomWorld) {
+  const browser = await getBrowser()
   // Tall viewport: some pages (e.g. the Stord lead form) are fixed overlays that can't scroll,
   // so controls below the default 720px fold would be unclickable
   this.context = await browser.newContext({ baseURL: BASE_URL, viewport: { width: 1440, height: 1400 } })
@@ -59,6 +64,8 @@ After(async function (this: CustomWorld, scenario) {
     stats.failed++
     stats.failedScenarios.push(scenario.pickle.name)
     if (this.page) this.attach(await this.page.screenshot(), 'image/png')
+    // API scenarios have no screenshot: attach the last response so a failure is diagnosable from the report
+    if (this.lastResponse) this.attach(JSON.stringify(this.lastResponse, null, 2), 'application/json')
     if (slackEnabled()) {
       await slackNotifier.sendFailureNotification(
         scenario.pickle.name,
@@ -89,7 +96,7 @@ AfterAll(async function () {
     `PASS RATE  ${passRate}%`,
     `DURATION   ${formatDuration(elapsed)} (avg ${total > 0 ? formatDuration(elapsed / total) : '0.0s'} per scenario)`,
     `SLOWEST    ${stats.slowest.name ? `${formatDuration(stats.slowest.ms)} - ${stats.slowest.name}` : 'n/a'}`,
-    `MODE       ${HEADED ? 'headed' : 'headless'} | Env: ${BASE_URL}`,
+    `MODE       ${HEADED ? 'headed' : 'headless'} | UI: ${BASE_URL} | API: ${API_BASE_URL}`,
     ...(stats.failedScenarios.length ? ['FAILED SCENARIOS:', ...stats.failedScenarios.map(name => `  - ${name}`)] : []),
     '==========================================================',
     ''

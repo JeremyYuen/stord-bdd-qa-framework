@@ -2,7 +2,7 @@
 
 ## What this project is
 Demo BDD framework (Cucumber + Playwright + TypeScript) built for a Stord interview.
-It tests the live Stord "Get Started" lead form (`https://www.stord.com/get-started`). API test scaffolding is in place for sample API tests.
+It tests the live Stord "Get Started" lead form (`https://www.stord.com/get-started`). API scenarios (`STD-002`) run against a public mock API (`API_BASE_URL`), since stord.com has no public API to test.
 
 ## Stack
 Cucumber JS, Playwright (Chromium), TypeScript, Allure + Cucumber HTML/JSON, Slack notifications, GitHub Actions.
@@ -12,7 +12,8 @@ Cucumber JS, Playwright (Chromium), TypeScript, Allure + Cucumber HTML/JSON, Sla
 src/
   features/ui|api/  # Gherkin feature files
   pages/             # Page objects (LOCATORS section, then METHODS section)
-  step-definitions/  # Thin Cucumber step bindings: one page-object call per step
+  services/          # API service objects (endpoints, payloads, assertions)
+  step-definitions/  # Thin Cucumber step bindings: one page-object/service call per step
   support/           # hooks.ts (browser lifecycle, API client, failure screenshot, Slack), world.ts (typed World)
   utils/             # apiClient, slackNotifier
   config/            # env.ts, timeouts.ts

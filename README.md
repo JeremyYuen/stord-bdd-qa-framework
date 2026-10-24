@@ -44,7 +44,7 @@ MODE       headless | Env: https://www.stord.com
 | `npm run allure:serve` | Open the Allure report for the last run |
 | `npm run typecheck` | `tsc --noEmit` |
 
-Copy `.env.example` to `.env` for local options (`HEADED`, `SLOW_MO`, `BASE_URL`, Slack webhooks).
+Copy `.env.example` to `.env` for local options (`HEADED`, `SLOW_MO`, `BASE_URL`, `API_BASE_URL`, Slack webhooks).
 CI has no `.env`, so it always runs headless.
 
 ## Project structure
@@ -53,7 +53,8 @@ CI has no `.env`, so it always runs headless.
 src/
   features/ui|api/   Gherkin feature files
   pages/             Page objects: LOCATORS section, then METHODS section
-  step-definitions/  Thin bindings: one page-object call per step
+  services/          API equivalent of page objects: endpoints, payloads and assertions
+  step-definitions/  Thin bindings: one page-object or service call per step
   support/           hooks.ts (browser lifecycle, screenshots, summary, Slack), world.ts (typed World)
   utils/             apiClient, slackNotifier
   config/            env.ts, timeouts.ts
@@ -103,8 +104,11 @@ enabled only if the webhook secrets exist.
 
 ## Current scope and next steps
 
-- **API layer is scaffolding.** `ApiClient` and the `@API` hook wiring exist, but there are
-  no API scenarios yet.
+- **API layer targets a public mock API, not Stord.** stord.com has no public API that is safe
+  to test, so `@API` scenarios (`STD-002.x`: contract, 404, filtering, create) run against
+  `API_BASE_URL` (default `jsonplaceholder.typicode.com`). The mock never persists writes, so
+  the create scenario asserts the 201 and echoed payload only. API failures attach the last
+  response to the report, the counterpart of the UI screenshot.
 - **Parallel execution and retries are off** (commented out in `cucumber.js`). Scenarios are
   already isolated by a fresh context each, so enabling parallel is a config change. Retries
   are off so a real failure is never hidden.
