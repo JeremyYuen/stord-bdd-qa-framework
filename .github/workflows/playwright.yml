@@ -1,0 +1,38 @@
+name: BDD Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Cucumber tag expression'
+        default: '@Smoke'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run tests
+        run: npx cucumber-js --tags "${{ github.event.inputs.tags || '@Smoke' }}"
+        env:
+          SLACK_NOTIFY: ${{ secrets.SLACK_WEBHOOK_FAILURES != '' }}
+          SLACK_WEBHOOK_FAILURES: ${{ secrets.SLACK_WEBHOOK_FAILURES }}
+          SLACK_WEBHOOK_REGRESSION: ${{ secrets.SLACK_WEBHOOK_REGRESSION }}
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            test-results/
+            allure-results/

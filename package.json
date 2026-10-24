@@ -1,0 +1,41 @@
+{
+  "name": "stord-bdd-demo",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "bdd:all": "cucumber-js",
+    "bdd:ui": "cucumber-js --tags \"@UI\"",
+    "bdd:api": "cucumber-js --tags \"@API\"",
+    "bdd:smoke": "cucumber-js --tags \"@Smoke\"",
+    "bdd:regression": "cucumber-js --tags \"@Regression\"",
+    "bdd:smoke:headed": "cross-env HEADED=true SLOW_MO=300 cucumber-js --tags \"@Smoke\"",
+    "bdd:headed": "cross-env HEADED=true SLOW_MO=300 cucumber-js",
+    "bdd:WIP": "cucumber-js --tags \"@Complete\"",
+    "bdd:smoke:slack": "cross-env TEST_SUITE=\"Smoke Tests\" SLACK_NOTIFY=true cucumber-js --tags \"@Smoke\"",
+    "bdd:regression:slack": "cross-env TEST_SUITE=\"Regression Tests\" SLACK_NOTIFY=true cucumber-js --tags \"@Regression\"",
+    "clean:allure": "rimraf allure-results allure-report",
+    "allure:generate": "allure generate allure-results --clean -o allure-report",
+    "allure:serve": "allure serve allure-results"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "BDD test automation demo (Cucumber + Playwright + TypeScript) for the Stord Get Started lead form: UI tests, API test scaffolding, Allure reporting, CI and Slack notifications.",
+  "devDependencies": {
+    "@cucumber/cucumber": "^10.9.0",
+    "@playwright/test": "^1.59.1",
+    "@slack/webhook": "^7.0.6",
+    "@types/node": "^25.6.0",
+    "allure-commandline": "^2.34.0",
+    "allure-cucumberjs": "^3.2.2",
+    "cross-env": "^10.1.0",
+    "playwright": "^1.59.1",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0"
+  }
+}
