@@ -46,24 +46,40 @@ jobs:
       - name: Build requirements traceability matrix
         if: always()
         run: npm run rtm
-      # Push this run's results into the dashboard repo; Vercel redeploys from there.
+      # Allure needs Java, which the ubuntu runner already has. The dashboard repo's previous report is
+      # checked out first so its history/ folder carries over and Allure can draw its own trend graphs.
+      - name: Check out the dashboard repo
+        if: always() && env.DASHBOARD_REPO != '' && env.DASHBOARD_TOKEN != ''
+        run: git clone --depth 1 "https://x-access-token:${DASHBOARD_TOKEN}@github.com/${DASHBOARD_REPO}.git" dashboard
+      - name: Generate Allure report
+        if: always()
+        run: |
+          if [ -d dashboard/allure/history ]; then cp -r dashboard/allure/history allure-results/history; fi
+          npx allure generate allure-results --clean -o allure-report
+      # Push this run's results (and the full Allure report) into the dashboard repo; Vercel redeploys from there.
       # (No "[skip ci]" in the message: Vercel would skip the deploy too.)
       - name: Publish results to the dashboard repo
         if: always() && env.DASHBOARD_REPO != '' && env.DASHBOARD_TOKEN != ''
         run: |
-          git clone --depth 1 "https://x-access-token:${DASHBOARD_TOKEN}@github.com/${DASHBOARD_REPO}.git" dashboard
-          node scripts/export-dashboard-data.js --out dashboard/data --suite "${SUITE}"
+          ALLURE_FLAG=""
+          if [ -f allure-report/index.html ]; then
+            rm -rf dashboard/allure && cp -r allure-report dashboard/allure
+            ALLURE_FLAG="--allure"
+          fi
+          node scripts/export-dashboard-data.js --out dashboard/data --suite "${SUITE}" ${ALLURE_FLAG}
           cd dashboard
           git config user.name "stord-qa-bot"
           git config user.email "stord-qa-bot@users.noreply.github.com"
           git add data
+          if [ -d allure ]; then git add allure; fi
           git commit -m "Results for run ${GITHUB_RUN_NUMBER} (${SUITE})" || { echo "No changes to publish"; exit 0; }
-          git pull --rebase origin HEAD
-          git push
-      # Allure needs Java, which the ubuntu runner already has
-      - name: Generate Allure report
-        if: always()
-        run: npx allure generate allure-results --clean -o allure-report
+          # Another writer (a manual run, a README edit) can move main between our pull and push: retry instead of losing the run
+          for attempt in 1 2 3; do
+            git pull --rebase origin HEAD && git push && exit 0
+            echo "Push failed (attempt $attempt), retrying"; sleep $((attempt * 5))
+          done
+          echo "Could not publish results to the dashboard repo" >&2
+          exit 1
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v7

@@ -21,7 +21,7 @@ const OUT = arg('out', 'dashboard-data')
 const SUITE = arg('suite', process.env.TEST_SUITE || 'Full suite')
 const KEEP_RUNS = 100
 
-const REPORT = path.join('test-results', 'cucumber-report.json')
+const REPORT = arg('report', path.join('test-results', 'cucumber-report.json'))
 const RTM = path.join('test-results', 'rtm.json')
 const STATS = path.join('test-results', 'run-stats.json')
 for (const file of [REPORT, RTM]) {
@@ -36,24 +36,109 @@ const rtm = read(RTM)
 const stats = fs.existsSync(STATS) ? read(STATS) : {}
 const flakyNames = new Set(stats.flaky || [])
 
-// ---------- tests: one record per scenario run (a retry shares an id: the last attempt wins) ----------
+// ---------- failure detail helpers ----------
+// Error text is shown on a web page: strip colour codes and our local folder path (it contains the OS user name)
+const ANSI = /\u001b\[[0-9;]*m/g
+const ROOT = new RegExp(process.cwd().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\\/g, '[\\\\/]') + '[\\\\/]?', 'gi')
+// Published text must not carry the machine's user name or a credential. Order matters: project root first, then any home folder.
+const HOME_PATHS = [/[A-Za-z]:[\\/]Users[\\/][^\\/\s]+/gi, /\/Users\/[^/\s]+/g, /\/home\/[^/\s]+/g]
+const SECRETS = [/gh[pousr]_[A-Za-z0-9]{20,}/g, /Bearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, /(authorization|x-api-key|api[_-]?key|token|password)(["']?\s*[:=]\s*["']?)[^\s"',}]+/gi]
+const scrub = text => {
+  let out = String(text || '').replace(ANSI, '').replace(ROOT, '')
+  HOME_PATHS.forEach(re => { out = out.replace(re, '~') })
+  SECRETS.forEach((re, i) => { out = out.replace(re, i === 2 ? '$1$2[redacted]' : '[redacted]') })
+  return out
+}
+// A BASE_URL with credentials or a query string must not be published with the results
+const cleanUrl = value => { try { const u = new URL(value); u.username = ''; u.password = ''; u.search = ''; u.hash = ''; return u.href.replace(/\/$/, '') } catch (e) { return value } }
+function splitError(raw) {
+  const text = scrub(raw)
+  const at = text.search(/\n\s+at /)
+  const message = (at > -1 ? text.slice(0, at) : text).trim().slice(0, 1500)
+  const frames = at > -1 ? text.slice(at).split('\n').map(l => l.trim()).filter(l => l.startsWith('at ') && !l.includes('node_modules') && !l.includes('node:internal')) : []
+  return { message, stack: frames.slice(0, 8) }
+}
+// Heuristic, like Allure's categories.json: a rule per bucket, first match wins. A person still decides what it really is.
+const CATEGORIES = [
+  ['environment', /ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|net::ERR|socket hang up|fetch failed|getaddrinfo/i],
+  ['element', /element\(s\) not found|Timeout \d+ms exceeded|waiting for (locator|selector)|strict mode violation|not visible|detached from/i],
+  ['assertion', /expect\(|AssertionError|Expected:[\s\S]*Received:/i]
+]
+const categorize = (status, message) => {
+  if (status === 'undefined' || status === 'pending' || status === 'ambiguous') return 'definition'
+  const hit = CATEGORIES.find(([, re]) => re.test(message))
+  return hit ? hit[0] : 'unknown'
+}
+
+// ---------- tests: one record per scenario (a retry shares an id: the last attempt wins) ----------
+const EVIDENCE = path.join(OUT, 'evidence')
+fs.rmSync(EVIDENCE, { recursive: true, force: true }) // evidence is for the latest run only: no unbounded growth in the dashboard repo
+const attempts = new Map()
 const byId = new Map()
 for (const feature of report) {
   for (const scenario of feature.elements || []) {
     if (scenario.type !== 'scenario') continue
     const tags = (scenario.tags || []).map(t => t.name)
-    const results = (scenario.steps || []).map(s => s.result && s.result.status)
+    const all = scenario.steps || []
+    const steps = all.filter(s => !s.hidden)
+    const results = steps.map(s => s.result && s.result.status)
+    const failedStep = all.find(s => s.result && s.result.error_message)
+    const status = all.some(s => s.result && s.result.status === 'failed') ? 'failed' : results.every(r => r === 'passed') ? 'passed' : 'skipped'
+    const id = (tags.find(t => /^@STD-\d+\.\d+$/.test(t)) || '').replace('@', '')
+    const error = failedStep ? splitError(failedStep.result.error_message) : null
+
+    // Hook attachments: the failure screenshot (UI) or the last API response (text)
+    const shots = [], texts = []
+    for (const s of all) {
+      for (const e of s.embeddings || []) {
+        if (e.mime_type === 'image/png') shots.push(e.data)
+        else if (/json|text/.test(e.mime_type)) texts.push({ type: e.mime_type, text: scrub(Buffer.from(e.data, 'base64').toString('utf8')).slice(0, 4000) })
+      }
+    }
+    attempts.set(scenario.id, (attempts.get(scenario.id) || []).concat({ status, error }))
+
+    let screenshot = ''
+    if (status === 'failed' && shots.length && id) {
+      fs.mkdirSync(EVIDENCE, { recursive: true })
+      fs.writeFileSync(path.join(EVIDENCE, `${id}.png`), Buffer.from(shots[shots.length - 1], 'base64'))
+      screenshot = `evidence/${id}.png`
+    }
+
     byId.set(scenario.id, {
-      id: (tags.find(t => /^@STD-\d+\.\d+$/.test(t)) || '').replace('@', ''),
+      id,
       name: scenario.name,
       feature: feature.name,
       layer: tags.includes('@API') ? 'api' : 'ui',
       severity: tags.includes('@Smoke') ? 'Smoke' : tags.includes('@Regression') ? 'Regression' : '',
-      status: results.includes('failed') ? 'failed' : results.every(r => r === 'passed') ? 'passed' : 'skipped',
+      status,
       flaky: flakyNames.has(scenario.name),
-      durationMs: Math.round((scenario.steps || []).reduce((sum, s) => sum + ((s.result && s.result.duration) || 0), 0) / 1e6),
-      requirements: tags.filter(t => t.startsWith('@REQ-')).map(t => t.replace('@', ''))
+      durationMs: Math.round(all.reduce((sum, s) => sum + ((s.result && s.result.duration) || 0), 0) / 1e6),
+      requirements: tags.filter(t => t.startsWith('@REQ-')).map(t => t.replace('@', '')),
+      // ---- detail for the test page ----
+      tags: tags.map(t => t.replace('@', '')),
+      source: { file: feature.uri.replace(/\\/g, '/'), line: scenario.line },
+      steps: steps.map(s => ({
+        keyword: String(s.keyword).trim(),
+        text: s.name || '',
+        status: (s.result && s.result.status) || 'unknown',
+        durationMs: Math.round(((s.result && s.result.duration) || 0) / 1e6)
+      })),
+      ...(error ? {
+        error: { ...error, step: failedStep.name || failedStep.keyword },
+        category: categorize(failedStep.result.status, error.message)
+      } : {}),
+      ...(screenshot ? { screenshot } : {}),
+      ...(texts.length && status === 'failed' ? { attachments: texts } : {})
     })
+  }
+}
+// A test that needed more than one attempt keeps the first failure, so "flaky" still says what went wrong
+for (const [key, list] of attempts) {
+  if (list.length > 1) {
+    const test = byId.get(key)
+    test.attempts = list.length
+    const firstFail = list.find(a => a.status === 'failed' && a.error)
+    if (test.status === 'passed' && firstFail) test.retryError = firstFail.error.message.split('\n')[0].slice(0, 300)
   }
 }
 const tests = [...byId.values()]
@@ -84,13 +169,24 @@ const summary = { ...tally(tests), skipped: tests.filter(t => t.status === 'skip
 const server = process.env.GITHUB_SERVER_URL
 const runUrl = server && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
   ? `${server}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : ''
+function playwrightVersion() {
+  try { return require('@playwright/test/package.json').version } catch (e) { return '' }
+}
+const repoUrl = server && process.env.GITHUB_REPOSITORY ? `${server}/${process.env.GITHUB_REPOSITORY}` : ''
+const sha = process.env.GITHUB_SHA || ''
 const context = {
   generatedAt: now,
   suite: SUITE,
-  env: process.env.BASE_URL || 'https://www.stord.com',
-  apiEnv: process.env.API_BASE_URL || 'https://jsonplaceholder.typicode.com',
+  env: cleanUrl(process.env.BASE_URL || 'https://www.stord.com'),
+  apiEnv: cleanUrl(process.env.API_BASE_URL || 'https://jsonplaceholder.typicode.com'),
+  tooling: { browser: 'Chromium', playwright: playwrightVersion(), node: process.version },
   branch: process.env.GITHUB_REF_NAME || 'local',
-  runUrl
+  runUrl,
+  repoUrl,
+  commit: sha.slice(0, 7),
+  commitUrl: repoUrl && sha ? `${repoUrl}/commit/${sha}` : '',
+  // The workflow passes --allure after it has copied the full Allure report next to the data (see playwright.yml)
+  allure: process.argv.includes('--allure')
 }
 const reqSummary = rtm.summary || {}
 
@@ -105,7 +201,7 @@ const results = {
 const entry = {
   runId, runNum, generatedAt: now, rate: summary.rate, total: summary.total, passed: summary.passed,
   failed: summary.failed, flaky: summary.flaky, skipped: summary.skipped, duration: summary.duration, durationMs,
-  suite: SUITE, env: context.env, branch: context.branch, runUrl,
+  suite: SUITE, env: context.env, branch: context.branch, runUrl, commit: context.commit, commitUrl: context.commitUrl,
   reqVerified: reqSummary.verified, reqTotal: reqSummary.requirements,
   // Per-test history: lets the dashboard show "new failures", "still failing for N runs" and the flaky leaderboard
   failedNames: tests.filter(t => t.status === 'failed').map(t => t.name),
