@@ -106,7 +106,10 @@ const entry = {
   runId, runNum, generatedAt: now, rate: summary.rate, total: summary.total, passed: summary.passed,
   failed: summary.failed, flaky: summary.flaky, skipped: summary.skipped, duration: summary.duration, durationMs,
   suite: SUITE, env: context.env, branch: context.branch, runUrl,
-  reqVerified: reqSummary.verified, reqTotal: reqSummary.requirements
+  reqVerified: reqSummary.verified, reqTotal: reqSummary.requirements,
+  // Per-test history: lets the dashboard show "new failures", "still failing for N runs" and the flaky leaderboard
+  failedNames: tests.filter(t => t.status === 'failed').map(t => t.name),
+  flakyNames: tests.filter(t => t.flaky).map(t => t.name)
 }
 const runs = [...history, entry].slice(-KEEP_RUNS)
 
