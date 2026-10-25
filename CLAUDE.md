@@ -43,6 +43,7 @@ npm run bdd:ui | bdd:api     # By layer
 npm run bdd:all              # Everything
 npm run rtm                  # RTM + UAT evidence from the last run (test-results/rtm.html)
 npm run rtm:open             # Same, then open it in the browser
+npm run dashboard:export -- --out <dir>   # Export the last run for the separate dashboard repo
 npm run allure:serve         # Open Allure report
 npm run bdd:smoke:slack      # Smoke + Slack notification
 ```

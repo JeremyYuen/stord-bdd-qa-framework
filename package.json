@@ -19,7 +19,8 @@
     "allure:serve": "allure serve allure-results",
     "bdd:parallel": "cross-env PARALLEL=3 cucumber-js",
     "rtm": "node scripts/generate-rtm.js",
-    "rtm:open": "node scripts/generate-rtm.js --open"
+    "rtm:open": "node scripts/generate-rtm.js --open",
+    "dashboard:export": "node scripts/export-dashboard-data.js"
   },
   "keywords": [],
   "author": "",

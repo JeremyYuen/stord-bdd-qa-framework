@@ -23,6 +23,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Optional dashboard publishing: both must exist, otherwise the publish step is skipped
+      DASHBOARD_REPO: ${{ vars.DASHBOARD_REPO }}
+      DASHBOARD_TOKEN: ${{ secrets.DASHBOARD_TOKEN }}
+      SUITE: ${{ github.event.inputs.tags || '@Smoke' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -41,6 +46,20 @@ jobs:
       - name: Build requirements traceability matrix
         if: always()
         run: npm run rtm
+      # Push this run's results into the dashboard repo; Vercel redeploys from there.
+      # (No "[skip ci]" in the message: Vercel would skip the deploy too.)
+      - name: Publish results to the dashboard repo
+        if: always() && env.DASHBOARD_REPO != '' && env.DASHBOARD_TOKEN != ''
+        run: |
+          git clone --depth 1 "https://x-access-token:${DASHBOARD_TOKEN}@github.com/${DASHBOARD_REPO}.git" dashboard
+          node scripts/export-dashboard-data.js --out dashboard/data --suite "${SUITE}"
+          cd dashboard
+          git config user.name "stord-qa-bot"
+          git config user.email "stord-qa-bot@users.noreply.github.com"
+          git add data
+          git commit -m "Results for run ${GITHUB_RUN_NUMBER} (${SUITE})" || { echo "No changes to publish"; exit 0; }
+          git pull --rebase origin HEAD
+          git push
       # Allure needs Java, which the ubuntu runner already has
       - name: Generate Allure report
         if: always()

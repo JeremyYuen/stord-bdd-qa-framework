@@ -6,6 +6,7 @@ import { ApiClient } from '../utils/apiClient'
 import { PostsService } from '../services/PostsService'
 import { API_BASE_URL, BASE_URL, HEADED, SLOW_MO } from '../config/env'
 import { TIMEOUTS } from '../config/timeouts'
+import fs from 'fs'
 
 setDefaultTimeout(TIMEOUTS.SCENARIO)
 
@@ -96,6 +97,15 @@ AfterAll(async function () {
   const total = stats.passed + stats.failed + stats.skipped
   const elapsed = Date.now() - stats.startTime
   const passRate = total > 0 ? ((stats.passed / total) * 100).toFixed(1) : '0.0'
+
+  // Facts the Cucumber JSON report doesn't carry (wall-clock time, which scenarios needed a retry).
+  // Read by scripts/export-dashboard-data.js.
+  fs.mkdirSync('test-results', { recursive: true })
+  fs.writeFileSync('test-results/run-stats.json', JSON.stringify({
+    durationMs: elapsed,
+    flaky: stats.passedOnRetry,
+    failedScenarios: stats.failedScenarios
+  }, null, 2))
   const lines = [
     '',
     '==================== TEST RUN SUMMARY ====================',

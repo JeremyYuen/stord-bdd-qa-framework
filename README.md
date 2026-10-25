@@ -45,6 +45,7 @@ MODE       headless | Env: https://www.stord.com
 | `npm run allure:serve` | Open the Allure report for the last run (needs Java installed locally) |
 | `npm run rtm` | Build the Requirements Traceability Matrix from the last run |
 | `npm run rtm:open` | Same, then open the report (`rtm.html`) in your browser |
+| `npm run dashboard:export` | Export the last run as dashboard data (`results.json`, `runs.json`, `rtm.json`); use `-- --out <folder>` |
 | `npm run typecheck` | `tsc --noEmit` |
 
 Copy `.env.example` to `.env` for local options (`HEADED`, `SLOW_MO`, `BASE_URL`, `API_BASE_URL`, Slack webhooks).
@@ -149,6 +150,12 @@ a weekday schedule and manually (with a tag expression input, default `@Smoke`).
 group stops two runs hitting the site at once. It generates the Allure report on the runner
 (Java is preinstalled there) and uploads it with `test-results/` on every run, pass or fail.
 Slack is enabled only if the webhook secrets exist.
+
+**Dashboard publishing (optional).** A separate static dashboard repo (the `stord-qa-dashboard` project, served by
+Vercel) shows the trend, run history, every test and the RTM. When the repository variable `DASHBOARD_REPO` and
+the secret `DASHBOARD_TOKEN` (a fine-grained token with Contents read and write on that repo only) both exist, CI
+runs `npm run dashboard:export` into a checkout of the dashboard repo and pushes the new run; Vercel redeploys from
+there. If either is missing the step is skipped, so the pipeline never depends on it.
 
 ## Current scope and next steps
 
