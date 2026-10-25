@@ -15,7 +15,7 @@ src/
   services/          # API service objects (endpoints, payloads, assertions)
   step-definitions/  # Thin Cucumber step bindings: one page-object/service call per step
   support/           # hooks.ts (browser lifecycle, API client, failure screenshot, Slack), world.ts (typed World)
-  utils/             # apiClient, slackNotifier
+  utils/             # apiClient, apiAssertions (shared API checks), testData (builders), slackNotifier
   config/            # env.ts, timeouts.ts
 ```
 
@@ -23,7 +23,7 @@ src/
 - `BASE_URL` defaults to `https://www.stord.com`; override in `.env` (see `.env.example`).
 
 ## Test ID convention
-`@STD-<feature>.<scenario>`, plus a layer tag (`@UI` or `@API`), a severity tag (`@Smoke` or `@Regression`) and `@Complete` when finished.
+`@STD-<feature>.<scenario>` and one or more requirement tags `@REQ-<area>-<n>` (defined in `requirements.json`, reported by `npm run rtm`), plus a layer tag (`@UI` or `@API`), a severity tag (`@Smoke` or `@Regression`) and `@Complete` when finished.
 
 ## Rules
 - **NEVER submit the live lead form.** It creates real leads in Stord's pipeline. Fill and validate only; page objects must not expose a submit action.
@@ -41,6 +41,8 @@ npm run bdd:smoke            # @Smoke
 npm run bdd:regression       # @Regression
 npm run bdd:ui | bdd:api     # By layer
 npm run bdd:all              # Everything
+npm run rtm                  # RTM + UAT evidence from the last run (test-results/rtm.html)
+npm run rtm:open             # Same, then open it in the browser
 npm run allure:serve         # Open Allure report
 npm run bdd:smoke:slack      # Smoke + Slack notification
 ```

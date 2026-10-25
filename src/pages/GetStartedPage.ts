@@ -1,6 +1,7 @@
 import { Locator, expect } from '@playwright/test'
 import { BasePage } from './BasePage'
 import { TIMEOUTS } from '../config/timeouts'
+import { validContact } from '../utils/testData'
 
 /**
  * Stord "Talk to an Expert" lead form (/get-started).
@@ -54,6 +55,21 @@ export class GetStartedPage extends BasePage {
     private readonly SERVICE = 'service_intrest'
     private readonly ORDER_VOLUME = 'monthly_order_volume'
 
+    // Dropdowns addressed by friendly name in feature files. Options only exist in the DOM while the list is open.
+    private readonly DROPDOWN_IDS: Record<string, string> = {
+        'country': this.COUNTRY,
+        'service': this.SERVICE,
+        'monthly order volume': this.ORDER_VOLUME
+    }
+    private dropdownId = (name: string): string => {
+        const id = this.DROPDOWN_IDS[name.toLowerCase()]
+        if (!id) throw new Error(`Unknown dropdown "${name}". Expected one of: ${Object.keys(this.DROPDOWN_IDS).join(', ')}`)
+        return id
+    }
+    // The option list is the dropdown's second child div; each option is a bare child div
+    private dropdownOptionList = (name: string): Locator =>
+        this.dropdown(this.dropdownId(name)).locator('> div').nth(1).locator('> div')
+
     // ========== METHODS ==========
 
     async openGetStartedPage(): Promise<void> {
@@ -97,16 +113,8 @@ export class GetStartedPage extends BasePage {
         console.log('✓ Entered values are retained in the fields')
     }
 
-    // Fake data that satisfies every required field. The form is never submitted.
-    private readonly VALID_FORM = {
-        first: 'Jane',
-        last: 'Tester',
-        company: 'QA Automation Co',
-        email: 'qa.automation@example.com',
-        country: 'Canada',
-        service: 'Fulfillment',
-        volume: '10,000-25,000'
-    }
+    // Fake data that satisfies every required field (see utils/testData.ts). The form is never submitted.
+    private readonly VALID_FORM = validContact()
 
     // Completes every required field, optionally leaving one out (to prove it is really required)
     async completeRequiredFields(skipField?: string): Promise<void> {
@@ -166,6 +174,21 @@ export class GetStartedPage extends BasePage {
         console.log(`✓ Focused and left ${fieldName} empty`)
     }
 
+    async fillFieldWithCharacters(fieldName: string, length: number): Promise<void> {
+        await this.fieldInput(fieldName).fill('A'.repeat(length))
+        console.log(`✓ Filled ${fieldName} with ${length} characters`)
+    }
+
+    async validateFieldValue(fieldName: string, value: string): Promise<void> {
+        await expect(this.fieldInput(fieldName)).toHaveValue(value)
+        console.log(`✓ ${fieldName} retained exactly: ${value.length > 40 ? value.slice(0, 40) + '…' : value}`)
+    }
+
+    async validateFieldHasCharacters(fieldName: string, length: number): Promise<void> {
+        await expect(this.fieldInput(fieldName)).toHaveValue('A'.repeat(length))
+        console.log(`✓ ${fieldName} retained all ${length} characters`)
+    }
+
     async validateRequiredErrorDisplayed(fieldName: string): Promise<void> {
         await expect(this.fieldError(fieldName)).toHaveText('* Required field')
         console.log(`✓ Required error displayed for ${fieldName}`)
@@ -204,6 +227,25 @@ export class GetStartedPage extends BasePage {
     async validateMonthlyOrderVolumeSelected(volume: string): Promise<void> {
         await this.validateDropdownSelected(this.ORDER_VOLUME, volume)
         console.log(`✓ Monthly order volume shows and stores: "${volume}"`)
+    }
+
+    async openDropdown(name: string): Promise<void> {
+        await this.dropdownTrigger(this.dropdownId(name)).click()
+        console.log(`✓ Opened the ${name} dropdown`)
+    }
+
+    // Exact list, in order: catches a removed, added, renamed or reordered option
+    async validateDropdownOptions(name: string, expected: string[]): Promise<void> {
+        await expect(this.dropdownOptionList(name)).toHaveText(expected)
+        console.log(`✓ ${name} dropdown offers exactly: ${expected.join(' | ')}`)
+    }
+
+    // For long lists (country has ~250): assert only the leading, business-prioritized options
+    async validateDropdownOptionsStartWith(name: string, expected: string[]): Promise<void> {
+        await expect(this.dropdownOptionList(name).first()).toBeVisible()
+        const options = await this.dropdownOptionList(name).allTextContents()
+        expect(options.slice(0, expected.length)).toEqual(expected)
+        console.log(`✓ ${name} dropdown starts with: ${expected.join(' | ')}`)
     }
 
     // Shared dropdown behavior: open it, click the option by its visible text

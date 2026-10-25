@@ -32,11 +32,6 @@ export class PostsService {
     return result
   }
 
-  validateStatus(result: ApiResult, expected: number): void {
-    expect(result.status).toBe(expected)
-    console.log(`✓ Status is ${expected}`)
-  }
-
   // Contract check: every field is present with the right type, not just "some JSON came back"
   validatePostContract(result: ApiResult): void {
     expect(result.body).toEqual({

@@ -1,0 +1,111 @@
+{
+  "_note": "Requirements are inferred from the form's observed behavior and labels (no Stord spec is available). Each is covered by scenarios tagged with its ID, e.g. @REQ-GS-02. 'uat' is a manual business sign-off: automation never sets it. Statuses: Pending | Accepted | Rejected.",
+  "requirements": [
+    {
+      "id": "REQ-GS-01", "area": "Get Started form", "priority": "High",
+      "title": "The form presents all contact and qualification fields with guidance placeholders",
+      "acceptanceCriteria": [
+        "First name, last name, company, work email, phone, country, service and monthly order volume are displayed",
+        "The Let's Talk submit button is displayed",
+        "Each text field shows its guidance placeholder"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-GS-02", "area": "Get Started form", "priority": "High",
+      "title": "First name, last name, company and work email are required",
+      "acceptanceCriteria": [
+        "Leaving first name, last name, company or work email empty shows '* Required field'",
+        "The message clears once a valid value is entered",
+        "Submission cannot proceed while any one of them is missing"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-GS-03", "area": "Get Started form", "priority": "Medium",
+      "title": "Phone number is optional",
+      "acceptanceCriteria": ["Leaving phone empty shows no error"],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-GS-04", "area": "Get Started form", "priority": "Medium",
+      "title": "Country, service and order volume selections are displayed and retained",
+      "acceptanceCriteria": [
+        "A chosen option is shown in the dropdown and stored in its form value",
+        "Values already entered in other fields are kept after selecting"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-GS-05", "area": "Get Started form", "priority": "Medium",
+      "title": "Dropdowns offer the approved business option lists",
+      "acceptanceCriteria": [
+        "Service offers exactly: Warehousing, Software, Freight, Fulfillment, All Of The Above",
+        "Monthly order volume offers exactly six ranges, from 200,000+ down to Less Than 10,000",
+        "Country lists United States, Canada and United Kingdom first"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-GS-06", "area": "Get Started form", "priority": "High",
+      "title": "Submission is gated until every required field is complete",
+      "acceptanceCriteria": [
+        "The submit button is disabled on an empty form",
+        "It is enabled once all seven required fields are complete",
+        "It stays disabled when any single required field is missing"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-GS-07", "area": "Get Started form", "priority": "High",
+      "title": "Free consumer email domains (gmail, yahoo, hotmail) are rejected; business domains are accepted",
+      "acceptanceCriteria": [
+        "A gmail, yahoo or hotmail address keeps the submit button disabled",
+        "A business address (example.com, acme-logistics.com, mail.example.co.uk) enables it"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-GS-08", "area": "Get Started form", "priority": "Low",
+      "title": "A visitor can leave the form and return to the home page",
+      "acceptanceCriteria": [
+        "The close (X) button is displayed",
+        "Clicking it navigates to the Stord home page"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-GS-09", "area": "Get Started form", "priority": "Medium",
+      "title": "Entered data is retained exactly as typed (unicode, symbols, long input)",
+      "acceptanceCriteria": [
+        "Apostrophes, accented and CJK text, symbols and markup-like text are kept unchanged",
+        "300-character and 1000-character entries are kept in full"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-API-01", "area": "Posts API", "priority": "Medium",
+      "title": "A post can be retrieved with the full field contract",
+      "acceptanceCriteria": ["GET a post returns 200 with id, userId, title and body of the correct types"],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-API-02", "area": "Posts API", "priority": "Medium",
+      "title": "A missing post returns a clean 404",
+      "acceptanceCriteria": ["GET a post that does not exist returns 404"],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-API-03", "area": "Posts API", "priority": "Medium",
+      "title": "Posts can be filtered by user without leaking other users' data",
+      "acceptanceCriteria": ["Filtering by user returns 200 and only that user's posts, and is never empty"],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
+      "id": "REQ-API-04", "area": "Posts API", "priority": "Medium",
+      "title": "A post can be created and the payload is echoed with a 201",
+      "acceptanceCriteria": ["POST a post returns 201 and echoes the submitted title, body and user"],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    }
+  ]
+}

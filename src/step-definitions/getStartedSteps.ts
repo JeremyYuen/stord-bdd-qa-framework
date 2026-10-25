@@ -1,4 +1,4 @@
-import { Given, When, Then } from '@cucumber/cucumber'
+import { Given, When, Then, DataTable } from '@cucumber/cucumber'
 import { CustomWorld } from '../support/world'
 import { GetStartedPage } from '../pages/GetStartedPage'
 
@@ -96,4 +96,28 @@ When('I click the close button', async function (this: CustomWorld) {
 
 Then('I should be taken to the Stord home page', async function (this: CustomWorld) {
   await new GetStartedPage(this.page).validateOnHomePage()
+})
+
+When('I open the {string} dropdown', async function (this: CustomWorld, name: string) {
+  await new GetStartedPage(this.page).openDropdown(name)
+})
+
+Then('the {string} dropdown should offer:', async function (this: CustomWorld, name: string, options: DataTable) {
+  await new GetStartedPage(this.page).validateDropdownOptions(name, options.raw().flat())
+})
+
+Then('the {string} dropdown should start with:', async function (this: CustomWorld, name: string, options: DataTable) {
+  await new GetStartedPage(this.page).validateDropdownOptionsStartWith(name, options.raw().flat())
+})
+
+When('I fill the {string} field with {int} characters', async function (this: CustomWorld, field: string, length: number) {
+  await new GetStartedPage(this.page).fillFieldWithCharacters(field, length)
+})
+
+Then('the {string} field should contain {string}', async function (this: CustomWorld, field: string, value: string) {
+  await new GetStartedPage(this.page).validateFieldValue(field, value)
+})
+
+Then('the {string} field should contain {int} characters', async function (this: CustomWorld, field: string, length: number) {
+  await new GetStartedPage(this.page).validateFieldHasCharacters(field, length)
 })

@@ -3,6 +3,7 @@ import { chromium, Browser } from '@playwright/test'
 import { CustomWorld } from './world'
 import { SlackNotifier } from '../utils/slackNotifier'
 import { ApiClient } from '../utils/apiClient'
+import { PostsService } from '../services/PostsService'
 import { API_BASE_URL, BASE_URL, HEADED, SLOW_MO } from '../config/env'
 import { TIMEOUTS } from '../config/timeouts'
 
@@ -16,8 +17,11 @@ const stats = {
   skipped: 0,
   startTime: Date.now(),
   failedScenarios: [] as string[],
+  passedOnRetry: [] as string[],
   slowest: { name: '', ms: 0 }
 }
+// Scenarios that failed an attempt and were retried: if they pass next time they are flaky, not green
+const retriedScenarios = new Set<string>()
 
 const slackEnabled = () => process.env.SLACK_NOTIFY === 'true'
 
@@ -48,12 +52,20 @@ Before({ tags: '@UI' }, async function (this: CustomWorld) {
 // API scenarios only: a request context bound to the base URL
 Before({ tags: '@API' }, async function (this: CustomWorld) {
   this.api = await ApiClient.create()
+  this.posts = new PostsService(this.api)
 })
 
 After(async function (this: CustomWorld, scenario) {
   const status = scenario.result?.status
+  const name = scenario.pickle.name
+  // A failed attempt that Cucumber is about to retry: keep the evidence, but don't count it or alert on it
+  const willRetry = status === 'FAILED' && scenario.willBeRetried
+  if (willRetry) retriedScenarios.add(name)
 
-  if (status === 'PASSED') stats.passed++
+  if (status === 'PASSED') {
+    stats.passed++
+    if (retriedScenarios.has(name)) stats.passedOnRetry.push(name)
+  }
   if (status === 'SKIPPED' || status === 'PENDING' || status === 'UNDEFINED') stats.skipped++
 
   // Timed here: result.duration isn't final yet while the After hook is still running
@@ -61,17 +73,15 @@ After(async function (this: CustomWorld, scenario) {
   if (scenarioMs > stats.slowest.ms) stats.slowest = { name: scenario.pickle.name, ms: scenarioMs }
 
   if (status === 'FAILED') {
-    stats.failed++
-    stats.failedScenarios.push(scenario.pickle.name)
     if (this.page) this.attach(await this.page.screenshot(), 'image/png')
     // API scenarios have no screenshot: attach the last response so a failure is diagnosable from the report
     if (this.lastResponse) this.attach(JSON.stringify(this.lastResponse, null, 2), 'application/json')
-    if (slackEnabled()) {
-      await slackNotifier.sendFailureNotification(
-        scenario.pickle.name,
-        scenario.result?.message || '',
-        scenario.pickle.tags.map(t => t.name)
-      )
+    if (!willRetry) {
+      stats.failed++
+      stats.failedScenarios.push(name)
+      if (slackEnabled()) {
+        await slackNotifier.sendFailureNotification(name, scenario.result?.message || '', scenario.pickle.tags.map(t => t.name))
+      }
     }
   }
 
@@ -92,12 +102,14 @@ AfterAll(async function () {
     `PASSED     ${stats.passed}`,
     `FAILED     ${stats.failed}`,
     `SKIPPED    ${stats.skipped}`,
+    `FLAKY      ${stats.passedOnRetry.length} (passed only on retry)`,
     `TOTAL      ${total}`,
     `PASS RATE  ${passRate}%`,
     `DURATION   ${formatDuration(elapsed)} (avg ${total > 0 ? formatDuration(elapsed / total) : '0.0s'} per scenario)`,
     `SLOWEST    ${stats.slowest.name ? `${formatDuration(stats.slowest.ms)} - ${stats.slowest.name}` : 'n/a'}`,
     `MODE       ${HEADED ? 'headed' : 'headless'} | UI: ${BASE_URL} | API: ${API_BASE_URL}`,
-    ...(stats.failedScenarios.length ? ['FAILED SCENARIOS:', ...stats.failedScenarios.map(name => `  - ${name}`)] : []),
+    ...(stats.passedOnRetry.length ? ['FLAKY SCENARIOS (investigate):', ...stats.passedOnRetry.map(n => `  - ${n}`)] : []),
+    ...(stats.failedScenarios.length ? ['FAILED SCENARIOS:', ...stats.failedScenarios.map(n => `  - ${n}`)] : []),
     '==========================================================',
     ''
   ]

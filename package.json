@@ -16,7 +16,10 @@
     "bdd:regression:slack": "cross-env TEST_SUITE=\"Regression Tests\" SLACK_NOTIFY=true cucumber-js --tags \"@Regression\"",
     "clean:allure": "rimraf allure-results allure-report",
     "allure:generate": "allure generate allure-results --clean -o allure-report",
-    "allure:serve": "allure serve allure-results"
+    "allure:serve": "allure serve allure-results",
+    "bdd:parallel": "cross-env PARALLEL=3 cucumber-js",
+    "rtm": "node scripts/generate-rtm.js",
+    "rtm:open": "node scripts/generate-rtm.js --open"
   },
   "keywords": [],
   "author": "",

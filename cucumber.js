@@ -13,8 +13,12 @@ module.exports = {
     ],
     paths: ["src/features/**/*.feature"],
     requireModule: ["ts-node/register"],
-    // parallel: 3,
-    // retry: 1,
+    // One retry for UI scenarios only (live-site/network hiccups). Hooks report anything that needed it as FLAKY.
+    retry: 1,
+    retryTagFilter: "@UI",
+    // Opt-in parallel workers (npm run bdd:parallel). Reports stay correct, but the console run summary
+    // in hooks.ts prints once per worker with partial numbers, so it is off by default.
+    parallel: Number(process.env.PARALLEL) || 0,
     timeout: 60000
   }
 }

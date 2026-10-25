@@ -1,14 +1,23 @@
 name: BDD Tests
 
+# The UI suite drives Stord's live production site, so it is NOT triggered on every push or PR.
+# It runs on a weekday schedule and on demand.
 on:
-  push:
-    branches: [main, master]
-  pull_request:
+  schedule:
+    - cron: '0 13 * * 1-5'
   workflow_dispatch:
     inputs:
       tags:
         description: 'Cucumber tag expression'
         default: '@Smoke'
+
+permissions:
+  contents: read
+
+# Never run two suites against the live site at once
+concurrency:
+  group: bdd-tests
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -28,6 +37,14 @@ jobs:
           SLACK_NOTIFY: ${{ secrets.SLACK_WEBHOOK_FAILURES != '' }}
           SLACK_WEBHOOK_FAILURES: ${{ secrets.SLACK_WEBHOOK_FAILURES }}
           SLACK_WEBHOOK_REGRESSION: ${{ secrets.SLACK_WEBHOOK_REGRESSION }}
+      # Traceability matrix (uploaded below). Fails the step if a requirement has a failing scenario.
+      - name: Build requirements traceability matrix
+        if: always()
+        run: npm run rtm
+      # Allure needs Java, which the ubuntu runner already has
+      - name: Generate Allure report
+        if: always()
+        run: npx allure generate allure-results --clean -o allure-report
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -35,4 +52,4 @@ jobs:
           name: reports
           path: |
             test-results/
-            allure-results/
+            allure-report/
