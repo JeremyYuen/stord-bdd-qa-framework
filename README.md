@@ -45,6 +45,8 @@ MODE       headless | Env: https://www.stord.com
 | `npm run allure:serve` | Open the Allure report for the last run (needs Java installed locally) |
 | `npm run rtm` | Build the Requirements Traceability Matrix from the last run |
 | `npm run rtm:open` | Same, then open the report (`rtm.html`) in your browser |
+| `npm run gate` | Release gate on the last run: exits 1 if smoke tests, High-priority requirements or the pass rate say no (add `-- --require-coverage` for full runs) |
+| `npm run test:unit` | 31 unit tests for the tooling (exporter helpers, release gate, accessibility baseline) |
 | `npm run dashboard:export` | Export the last run as dashboard data (`results.json`, `runs.json`, `rtm.json`); use `-- --out <folder>` |
 | `npm run typecheck` | `tsc --noEmit` |
 
@@ -151,6 +153,16 @@ group stops two runs hitting the site at once. It generates the Allure report on
 (Java is preinstalled there) and uploads it with `test-results/` on every run, pass or fail.
 Slack is enabled only if the webhook secrets exist.
 
+**The release gate decides the job's result.** The tests step is allowed to fail so that results are always published
+and uploaded first; the final **Release gate** step (`scripts/release-gate.js`, rules in `scripts/lib/gate.js`) then
+fails the job if a smoke test failed (or none ran), the pass rate is under 80%, tests were skipped, or a High-priority
+requirement failed. Failures that do not cross the gate (say, one Medium regression test) become a warning plus a table in the
+job summary. A run that does not include smoke tests (for example `-f tags=@Regression`) is "not ready" by design.
+For `@Complete` runs the gate also requires every High-priority requirement to have a result.
+
+**Pull requests** run `.github/workflows/pr-checks.yml`: type check, unit tests and the API scenarios. The UI suite is not
+there, for the same reason it is not on push.
+
 **Dashboard publishing (optional).** A separate static dashboard repo (the `stord-qa-dashboard` project, served by
 Vercel) shows the trend, run history, every test and the RTM. When the repository variable `DASHBOARD_REPO` and
 the secret `DASHBOARD_TOKEN` (a fine-grained token with Contents read and write on that repo only) both exist, CI
@@ -166,7 +178,8 @@ there. If either is missing the step is skipped, so the pipeline never depends o
   response to the report, the counterpart of the UI screenshot.
 - **Retries are on for `@UI` only** (`retry: 1`): one retry absorbs live-site and network noise. API calls are deterministic, so they never retry. A failed attempt that is retried is not counted as a failure and sends no Slack alert, and a scenario that only passed on retry is reported as **FLAKY** in the run summary, so retries cannot hide instability.
 - **Parallel execution is opt-in** (`npm run bdd:parallel`, 3 workers). Scenarios are isolated, so it works, but the console summary prints once per worker with partial totals, which is why it is off by default.
-- **Single feature, single browser.** Chromium only, one viewport, no accessibility checks.
+- **Single feature, single browser.** Chromium only, one viewport.
+- **Accessibility is baseline-checked, not zero-violation.** `STD-001.18` runs an axe scan of the form and fails on a *new* rule or a known rule affecting *more* elements (`src/utils/accessibility.ts` lists what is known and why). Fixing an issue never fails it.
 
 ## Findings from exploratory testing
 
@@ -177,7 +190,7 @@ behavior, so the suite stays green and honest:
 - A malformed address such as `notanemail` leaves the submit button enabled, so email format is
   not validated client-side.
 - Free-email rejection (`gmail`, `yahoo`) is silent: the button stays disabled with no message.
-- The icon-only close button has no accessible name (no text, `aria-label` or id).
+- The icon-only close button has no accessible name (no text, `aria-label` or id). An axe scan (WCAG 2.1 A/AA) also finds: the "Make a Selection" placeholder fails colour contrast, and the viewport meta tag disables pinch-zoom (`user-scalable=no`). The hidden tracking inputs lack labels but are not visitor-facing, so they are excluded from the scan.
 - The dropdown required-field errors only appear on submit, so they are untested on the live site.
 - The email label promises "Gmail and other free emails will not be accepted", but only `gmail`,
   `yahoo` and `hotmail` are rejected. `outlook`, `icloud`, `aol`, `proton`, `live`, `msn`,

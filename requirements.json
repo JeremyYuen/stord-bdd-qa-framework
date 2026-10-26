@@ -84,6 +84,15 @@
       "uat": { "status": "Pending", "reviewer": "", "date": "" }
     },
     {
+      "id": "REQ-GS-10", "area": "Get Started form", "priority": "Medium",
+      "title": "The form meets WCAG 2.1 A/AA apart from documented known issues",
+      "acceptanceCriteria": [
+        "An automated scan (axe) finds no rule outside the documented known issues",
+        "No known issue affects more elements than recorded"
+      ],
+      "uat": { "status": "Pending", "reviewer": "", "date": "" }
+    },
+    {
       "id": "REQ-API-01", "area": "Posts API", "priority": "Medium",
       "title": "A post can be retrieved with the full field contract",
       "acceptanceCriteria": ["GET a post returns 200 with id, userId, title and body of the correct types"],

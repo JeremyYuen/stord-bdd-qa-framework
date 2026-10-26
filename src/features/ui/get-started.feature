@@ -173,3 +173,9 @@ Feature: Get Started lead form
       | field      | length |
       | first name | 300    |
       | company    | 1000   |
+
+  # Why: accessibility is a legal and a usability risk on a lead form. The live site has known issues (see
+  # src/utils/accessibility.ts), so this guards against NEW ones: a new rule, or a known rule hitting more elements.
+  @Regression @Accessibility @STD-001.18 @REQ-GS-10 @Complete
+  Scenario: [Get Started] - STD-001.18 - The form has no new accessibility violations
+    Then the form should have no new accessibility violations

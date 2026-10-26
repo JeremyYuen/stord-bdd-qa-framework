@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test:unit": "node --test \"scripts/__tests__/*.test.js\"",
     "bdd:all": "cucumber-js",
     "bdd:ui": "cucumber-js --tags \"@UI\"",
     "bdd:api": "cucumber-js --tags \"@API\"",
@@ -20,6 +21,7 @@
     "bdd:parallel": "cross-env PARALLEL=3 cucumber-js",
     "rtm": "node scripts/generate-rtm.js",
     "rtm:open": "node scripts/generate-rtm.js --open",
+    "gate": "node scripts/release-gate.js",
     "dashboard:export": "node scripts/export-dashboard-data.js"
   },
   "keywords": [],
@@ -27,6 +29,7 @@
   "license": "ISC",
   "description": "BDD test automation demo (Cucumber + Playwright + TypeScript) for the Stord Get Started lead form: UI tests, API test scaffolding, Allure reporting, CI and Slack notifications.",
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@cucumber/cucumber": "^10.9.0",
     "@playwright/test": "^1.59.1",
     "@slack/webhook": "^7.0.6",

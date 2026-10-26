@@ -1,0 +1,27 @@
+name: PR checks
+
+# Fast checks on every pull request. The UI suite is deliberately NOT here: it drives Stord's live production
+# site, so it runs on a schedule and on demand (see playwright.yml). The API scenarios hit a public mock.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit tests (exporter helpers, release gate, accessibility baseline)
+        run: npm run test:unit
+      - name: API scenarios
+        run: npx cucumber-js --tags "@API"

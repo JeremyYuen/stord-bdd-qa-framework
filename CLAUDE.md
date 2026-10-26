@@ -43,6 +43,8 @@ npm run bdd:ui | bdd:api     # By layer
 npm run bdd:all              # Everything
 npm run rtm                  # RTM + UAT evidence from the last run (test-results/rtm.html)
 npm run rtm:open             # Same, then open it in the browser
+npm run gate                 # Release gate on the last run (exit 1 = not ready); CI runs it as the final step
+npm run test:unit            # Unit tests for scripts/lib (gate, exporter helpers) and the a11y baseline
 npm run dashboard:export -- --out <dir>   # Export the last run for the separate dashboard repo
 npm run allure:serve         # Open Allure report
 npm run bdd:smoke:slack      # Smoke + Slack notification

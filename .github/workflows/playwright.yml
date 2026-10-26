@@ -36,7 +36,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      # The tests step never fails the job by itself: results are always built, published and uploaded first, and the
+      # "Release gate" step at the end makes the call (smoke tests, High-priority requirements, pass rate). A failing
+      # Medium-priority test still shows up as a warning, in the job summary and on the dashboard.
       - name: Run tests
+        id: tests
+        continue-on-error: true
         run: npx cucumber-js --tags "${{ github.event.inputs.tags || '@Smoke' }}"
         env:
           SLACK_NOTIFY: ${{ secrets.SLACK_WEBHOOK_FAILURES != '' }}
@@ -80,6 +85,9 @@ jobs:
           done
           echo "Could not publish results to the dashboard repo" >&2
           exit 1
+      - name: Release gate
+        if: always()
+        run: npm run gate -- ${{ contains(env.SUITE, '@Complete') && '--require-coverage' || '' }}
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v7

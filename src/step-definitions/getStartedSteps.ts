@@ -121,3 +121,13 @@ Then('the {string} field should contain {string}', async function (this: CustomW
 Then('the {string} field should contain {int} characters', async function (this: CustomWorld, field: string, length: number) {
   await new GetStartedPage(this.page).validateFieldHasCharacters(field, length)
 })
+
+Then('the form should have no new accessibility violations', async function (this: CustomWorld) {
+  const result = await new GetStartedPage(this.page).scanAccessibility()
+  // Attach the full picture so the report shows what is known, what is new and what has been fixed
+  this.attach(
+    [`New: ${result.newIssues.length}`, ...result.newIssues, `Known: ${result.known.length}`, ...result.known, `Fixed: ${result.fixed.length}`, ...result.fixed].join('\n'),
+    'text/plain'
+  )
+  if (result.newIssues.length) throw new Error(`New accessibility violations:\n${result.newIssues.join('\n')}`)
+})

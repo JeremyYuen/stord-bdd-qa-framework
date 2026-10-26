@@ -2,6 +2,7 @@ import { Locator, expect } from '@playwright/test'
 import { BasePage } from './BasePage'
 import { TIMEOUTS } from '../config/timeouts'
 import { validContact } from '../utils/testData'
+import { scanAccessibility, A11yResult } from '../utils/accessibility'
 
 /**
  * Stord "Talk to an Expert" lead form (/get-started).
@@ -246,6 +247,12 @@ export class GetStartedPage extends BasePage {
         const options = await this.dropdownOptionList(name).allTextContents()
         expect(options.slice(0, expected.length)).toEqual(expected)
         console.log(`✓ ${name} dropdown starts with: ${expected.join(' | ')}`)
+    }
+
+    // Accessibility: scan the form (not third-party widgets) and compare with the documented known issues
+    async scanAccessibility(): Promise<A11yResult> {
+        await expect(this.firstNameInput()).toBeVisible()
+        return scanAccessibility(this.page)
     }
 
     // Shared dropdown behavior: open it, click the option by its visible text
